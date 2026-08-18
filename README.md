@@ -1,9 +1,6 @@
 # Interview_Preparation
 # 🎯 30-Day COMPLETE Interview Preparation Roadmap — Service-Based Companies
 
-**Profile**: Angooj Kumar Singh | ~5+ Years Experience | Java / Spring Boot / SQL
-**Target**: Service-based companies (TCS, Infosys, Wipro, HCL, Capgemini, Accenture, DXC, LTIMindtree, Tech Mahindra, Mphasis, etc.)
-**Timeline**: 30 Days (Aug 18, 2026 → Sep 16, 2026)
 **Daily Commitment**: 4–5 hours/day (weekdays), 6–7 hours/day (weekends)
 
 ---
