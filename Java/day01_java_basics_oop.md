@@ -1967,13 +1967,139 @@ public void example() {
 
 ---
 
+## 16.5 Common Mistakes & Anti-Patterns
+
+These are mistakes that Java developers commonly make. Interviewers sometimes ask about these directly, and avoiding them in your code demonstrates maturity.
+
+### Mistake 1: Using `==` to Compare Objects
+```java
+// ❌ WRONG
+String s1 = new String("Hello");
+String s2 = new String("Hello");
+if (s1 == s2) { }              // Compares REFERENCES, not content
+
+// ✅ CORRECT
+if (s1.equals(s2)) { }         // Compares CONTENT
+```
+
+### Mistake 2: Not Overriding `hashCode()` When Overriding `equals()`
+```java
+// ❌ WRONG — breaks HashMap/HashSet
+@Override
+public boolean equals(Object o) { ... }
+// Missing hashCode()!
+
+// ✅ CORRECT — always override both
+@Override
+public boolean equals(Object o) { ... }
+@Override
+public int hashCode() { return Objects.hash(field1, field2); }
+```
+
+### Mistake 3: Calling Overridable Methods from Constructor
+```java
+// ❌ DANGEROUS — child's fields not initialized yet
+class Parent {
+    Parent() { display(); }      // display() is overridden in Child
+    void display() { }
+}
+class Child extends Parent {
+    int x = 10;
+    @Override
+    void display() {
+        System.out.println(x);   // Prints 0, not 10!
+    }
+}
+
+// ✅ SAFE — use final or private methods in constructors
+class Parent {
+    Parent() { init(); }
+    private void init() { }       // Can't be overridden
+}
+```
+
+### Mistake 4: Ignoring Access Modifiers (Making Everything Public)
+```java
+// ❌ WRONG — exposes internal implementation
+public class Patient {
+    public String name;           // Anyone can set to anything!
+    public int age;               // No validation possible
+}
+
+// ✅ CORRECT — proper encapsulation
+public class Patient {
+    private String name;
+    private int age;
+    public void setAge(int age) {
+        if (age < 0 || age > 150) throw new IllegalArgumentException();
+        this.age = age;
+    }
+}
+```
+
+### Mistake 5: Confusing Method Overriding with Method Hiding
+```java
+// ❌ COMMON CONFUSION
+class Parent {
+    static void greet() { System.out.println("Parent"); }
+}
+class Child extends Parent {
+    static void greet() { System.out.println("Child"); }  // This is HIDING, not overriding!
+}
+Parent p = new Child();
+p.greet();   // "Parent" — no polymorphism for static methods!
+
+// ✅ UNDERSTAND: Polymorphism works ONLY for instance methods
+```
+
+### Mistake 6: Using Abstract Class When Interface is More Appropriate
+```java
+// ❌ OVER-ENGINEERING — forces single inheritance
+abstract class Printable {
+    abstract void print();
+}
+
+// ✅ BETTER — allows multiple capabilities
+interface Printable {
+    void print();
+}
+interface Exportable {
+    void export();
+}
+// A class can implement both!
+class Report implements Printable, Exportable { ... }
+```
+
+### Mistake 7: Integer Division Surprise
+```java
+// ❌ UNEXPECTED
+int a = 5, b = 2;
+double result = a / b;        // 2.0, not 2.5!
+// Integer / Integer = Integer (truncated), THEN converted to double
+
+// ✅ CORRECT
+double result = (double) a / b;  // 2.5 — cast one operand first
+```
+
+### Mistake 8: Not Understanding `final` Reference vs Immutability
+```java
+final List<String> list = new ArrayList<>();
+// ❌ THINKING: "list is immutable"
+list.add("Hello");               // ✅ This WORKS! Content can change
+// list = new ArrayList<>();     // ❌ Only the REFERENCE is final
+
+// For true immutability:
+List<String> immutable = List.of("A", "B", "C");   // Java 9+
+// immutable.add("D");         // ❌ UnsupportedOperationException
+```
+
 ## 17. Interview Questions & Answers (65+)
 
 ### Category A: Java Platform (5 Questions)
 
 ---
 
-**Q1: What is the difference between JDK, JRE, and JVM?**
+**Q1 🟢: What is the difference between JDK, JRE, and JVM?**
 
 **Answer**:
 - **JVM** (Java Virtual Machine): Abstract machine that executes bytecode. Contains ClassLoader, Execution Engine (Interpreter + JIT), and runtime memory areas. It's platform-dependent (different JVM for different OS).
@@ -1984,7 +2110,7 @@ public void example() {
 
 ---
 
-**Q2: Why is Java called "platform-independent"?**
+**Q2 🟢: Why is Java called "platform-independent"?**
 
 **Answer**: Java source code is compiled into **bytecode** (`.class` files) which is platform-independent — the same bytecode runs on any OS. The JVM (which IS platform-dependent — different JVM for Windows, Mac, Linux) interprets this bytecode. So: "Write Once, Run Anywhere."
 
@@ -1992,7 +2118,7 @@ The bytecode acts as a **middle layer** between the source code and the native m
 
 ---
 
-**Q3: What is the JIT compiler?**
+**Q3 🟡: What is the JIT compiler?**
 
 **Answer**: JIT (Just-In-Time) compiler is part of the JVM's Execution Engine. It compiles frequently executed bytecode ("hot spots") into **native machine code** at runtime for better performance.
 
@@ -2002,7 +2128,7 @@ Modern JVMs use **tiered compilation**: C1 (quick compile, basic optimizations) 
 
 ---
 
-**Q4: What is `public static void main(String[] args)` — explain each word.**
+**Q4 🟢: What is `public static void main(String[] args)` — explain each word.**
 
 **Answer**:
 - `public`: Accessible from anywhere (JVM needs to call it from outside)
@@ -2020,7 +2146,7 @@ Modern JVMs use **tiered compilation**: C1 (quick compile, basic optimizations) 
 
 ---
 
-**Q5: Can we run a Java program without the `main()` method?**
+**Q5 🟡: Can we run a Java program without the `main()` method?**
 
 **Answer**:
 - **Java 6 and earlier**: Yes, using a static initializer block (the JVM loaded the class and ran static blocks before looking for main). But the program would end with a "Main method not found" error.
@@ -2032,7 +2158,7 @@ Modern JVMs use **tiered compilation**: C1 (quick compile, basic optimizations) 
 
 ---
 
-**Q6: What are the 8 primitive data types in Java?**
+**Q6 🟢: What are the 8 primitive data types in Java?**
 
 **Answer**: Organized by category:
 - **Integer**: `byte` (1B), `short` (2B), `int` (4B), `long` (8B)
@@ -2044,7 +2170,7 @@ All are stored on the stack (when local), have fixed sizes across all platforms,
 
 ---
 
-**Q7: What is the difference between `int` and `Integer`?**
+**Q7 🟢: What is the difference between `int` and `Integer`?**
 
 **Answer**:
 | Feature | `int` | `Integer` |
@@ -2061,13 +2187,13 @@ Java 5 introduced **autoboxing/unboxing** for automatic conversion between them.
 
 ---
 
-**Q8: Why is `char` 2 bytes in Java?**
+**Q8 🟡: Why is `char` 2 bytes in Java?**
 
 **Answer**: Java uses **Unicode** (UTF-16) to represent characters, supporting international scripts (Chinese, Arabic, Hindi, Bengali, etc.). Unicode needs 2 bytes per character. C/C++ uses ASCII which only needs 1 byte but is limited to 128 characters.
 
 ---
 
-**Q9: What is type promotion? Predict the output:**
+**Q9 🟡: What is type promotion? Predict the output:**
 ```java
 byte a = 10, b = 30;
 byte c = (byte)(a * b);
@@ -2080,7 +2206,7 @@ System.out.println(c);
 
 ---
 
-**Q10: What is the difference between `=`, `==`, and `.equals()`?**
+**Q10 🟢: What is the difference between `=`, `==`, and `.equals()`?**
 
 **Answer**:
 - `=`: **Assignment** operator
@@ -2095,7 +2221,7 @@ s1.equals(s2);     // true — same content
 
 ---
 
-**Q11: What is the `var` keyword? (Java 10+)**
+**Q11 🟡: What is the `var` keyword? (Java 10+)**
 
 **Answer**: `var` enables local variable type inference — the compiler determines the type from the initializer.
 
@@ -2108,13 +2234,13 @@ var list = new ArrayList<String>(); // Inferred: ArrayList<String>
 
 ---
 
-**Q12: What happens if you don't initialize a local variable?**
+**Q12 🟡: What happens if you don't initialize a local variable?**
 
 **Answer**: **Compile error**. Local variables have no default values — you must explicitly assign before use. Instance and static variables DO get defaults (0, null, false).
 
 ---
 
-**Q13: What are the default values of instance variables?**
+**Q13 🟡: What are the default values of instance variables?**
 
 **Answer**: `byte/short/int` = 0, `long` = 0L, `float` = 0.0f, `double` = 0.0, `char` = '\u0000', `boolean` = false, any Object reference = null.
 
@@ -2124,7 +2250,7 @@ var list = new ArrayList<String>(); // Inferred: ArrayList<String>
 
 ---
 
-**Q14: What are the 4 pillars of OOP? Explain with real-world examples.**
+**Q14 🟢: What are the 4 pillars of OOP? Explain with real-world examples.**
 
 **Answer**:
 1. **Encapsulation** (Data Hiding): Wrapping data + methods in a class, hiding internals. *Example*: Bank account — can't modify balance directly, must use deposit/withdraw methods with rules.
@@ -2134,7 +2260,7 @@ var list = new ArrayList<String>(); // Inferred: ArrayList<String>
 
 ---
 
-**Q15: What is the difference between method overloading and overriding?**
+**Q15 🟢: What is the difference between method overloading and overriding?**
 
 **Answer**:
 | Feature | Overloading | Overriding |
@@ -2150,43 +2276,43 @@ var list = new ArrayList<String>(); // Inferred: ArrayList<String>
 
 ---
 
-**Q16: Can we override a static method?**
+**Q16 🟡: Can we override a static method?**
 
 **Answer**: **No**. Static methods are bound at compile time based on the reference type. If a child defines a static method with the same signature, it's called **method hiding**, not overriding. The method called depends on the **reference type**, not the actual object type — no runtime polymorphism.
 
 ---
 
-**Q17: Can we override a private method?**
+**Q17 🟡: Can we override a private method?**
 
 **Answer**: **No**. Private methods are not visible to child classes, so there's nothing to override. If a child defines a method with the same name, it's a **completely new method**.
 
 ---
 
-**Q18: Can we overload the `main()` method?**
+**Q18 🟢: Can we overload the `main()` method?**
 
 **Answer**: **Yes**. But only `public static void main(String[] args)` is the entry point. Other overloaded versions are just regular static methods.
 
 ---
 
-**Q19: What is the difference between abstract class and interface?**
+**Q19 🟢: What is the difference between abstract class and interface?**
 
 **Answer**: *(See detailed table in Section 11.3)* Key points: abstract class = partial abstraction + state + single inheritance; interface = contract + no state + multiple inheritance.
 
 ---
 
-**Q20: Can an abstract class have a constructor?**
+**Q20 🟡: Can an abstract class have a constructor?**
 
 **Answer**: **Yes**. Called via `super()` from child constructors. Used to initialize common fields inherited by all subclasses.
 
 ---
 
-**Q21: Can an abstract class have no abstract methods?**
+**Q21 🟡: Can an abstract class have no abstract methods?**
 
 **Answer**: **Yes**. Declaring a class `abstract` just prevents direct instantiation. Useful when you want to force subclassing.
 
 ---
 
-**Q22: What is the Diamond Problem? How does Java handle it?**
+**Q22 🔴: What is the Diamond Problem? How does Java handle it?**
 
 **Answer**: When a class inherits from two parents that both have the same method — which version to use?
 
@@ -2194,13 +2320,13 @@ Java prevents it with classes (single inheritance only). With interfaces (Java 8
 
 ---
 
-**Q23: Why doesn't Java support multiple inheritance with classes?**
+**Q23 🟡: Why doesn't Java support multiple inheritance with classes?**
 
 **Answer**: To avoid ambiguity (Diamond Problem). Instead, Java provides multiple interface implementation, which originally had no method bodies (no ambiguity). Java 8+ added default methods with mandatory conflict resolution.
 
 ---
 
-**Q24: What is dynamic method dispatch?**
+**Q24 🟡: What is dynamic method dispatch?**
 
 **Answer**: The mechanism by which JVM decides at **runtime** which overridden method to call, based on the actual object type (not reference type). Foundation of runtime polymorphism.
 
@@ -2211,7 +2337,7 @@ a.sound();               // Calls Dog's sound() — decided at RUNTIME
 
 ---
 
-**Q25: Explain upcasting vs downcasting.**
+**Q25 🔴: Explain upcasting vs downcasting.**
 
 **Answer**: 
 - **Upcasting** (child → parent): Implicit, safe. `Animal a = new Dog();`
@@ -2221,13 +2347,13 @@ Always check with `instanceof` before downcasting.
 
 ---
 
-**Q26: What is covariant return type?**
+**Q26 🟡: What is covariant return type?**
 
 **Answer**: When overriding, the child can return a **subtype** of the parent's return type. E.g., parent returns `Animal`, child can return `Dog`.
 
 ---
 
-**Q27: Does polymorphism work for fields (instance variables)?**
+**Q27 🔴: Does polymorphism work for fields (instance variables)?**
 
 **Answer**: **No**! Polymorphism only works for **instance methods**. Fields and static methods are resolved by the **reference type** at compile time.
 
@@ -2240,37 +2366,37 @@ System.out.println(p.x);  // 10 — Parent's x! (No polymorphism for fields)
 
 ---
 
-**Q28: What is a marker interface? Give examples.**
+**Q28 🟡: What is a marker interface? Give examples.**
 
 **Answer**: An interface with **no methods** — just marks a class with a capability. JVM checks for the marker at runtime. Examples: `Serializable`, `Cloneable`, `Remote`. Modern Java uses annotations as markers instead (`@Entity`, `@Component`).
 
 ---
 
-**Q29: What are `default` methods in interfaces? Why were they added?**
+**Q29 🟡: What are `default` methods in interfaces? Why were they added?**
 
 **Answer**: Methods with a body in interfaces (Java 8). Added so that new methods (like `stream()`, `forEach()`) could be added to existing interfaces without breaking all implementations.
 
 ---
 
-**Q30: Can we make a constructor private? Why?**
+**Q30 🟡: Can we make a constructor private? Why?**
 
 **Answer**: **Yes**. Used for: Singleton (one instance), Factory (controlled creation), Utility classes (only static methods — `Math`).
 
 ---
 
-**Q31: What is the `Object` class? Name its methods.**
+**Q31 🟢: What is the `Object` class? Name its methods.**
 
 **Answer**: Root of all Java classes. Every class implicitly extends `Object`. 11 methods: `toString()`, `equals()`, `hashCode()`, `getClass()`, `clone()`, `finalize()`, `wait()` (3 overloads), `notify()`, `notifyAll()`.
 
 ---
 
-**Q32: Explain the `equals()` and `hashCode()` contract.**
+**Q32 🟡: Explain the `equals()` and `hashCode()` contract.**
 
 **Answer**: If `a.equals(b)` is `true`, then `a.hashCode() == b.hashCode()` **MUST** be true. Breaking this contract causes HashMap/HashSet to malfunction — an object can be added but never found.
 
 ---
 
-**Q33: What is the difference between Association, Aggregation, and Composition?**
+**Q33 🔴: What is the difference between Association, Aggregation, and Composition?**
 
 **Answer**:
 - **Association**: Two independent objects interact. Neither owns the other. (Doctor ↔ Patient)
@@ -2283,73 +2409,73 @@ System.out.println(p.x);  // 10 — Parent's x! (No polymorphism for fields)
 
 ---
 
-**Q34: What are all uses of `this` keyword?**
+**Q34 🟡: What are all uses of `this` keyword?**
 
 **Answer**: 6 uses: (1) Refer to instance variable, (2) Invoke method, (3) Invoke constructor (`this()`), (4) Pass as argument, (5) Return current object (fluent API), (6) Synchronized block.
 
 ---
 
-**Q35: What are all uses of `super` keyword?**
+**Q35 🟡: What are all uses of `super` keyword?**
 
 **Answer**: 3 uses: (1) Call parent constructor, (2) Call parent method, (3) Access parent variable (when hidden).
 
 ---
 
-**Q36: Can `this()` and `super()` be used in the same constructor?**
+**Q36 🟡: Can `this()` and `super()` be used in the same constructor?**
 
 **Answer**: **No**. Both must be the first statement — mutually exclusive.
 
 ---
 
-**Q37: What is the execution order of static blocks, instance blocks, and constructors?**
+**Q37 🔴: What is the execution order of static blocks, instance blocks, and constructors?**
 
 **Answer**: Static blocks (parent→child, once) → Instance block → Constructor (parent→child, per `new`).
 
 ---
 
-**Q38: Can you access instance variables from a static method?**
+**Q38 🟡: Can you access instance variables from a static method?**
 
 **Answer**: Not directly. Static methods don't have `this`. You can access through an object reference: `new Obj().field`.
 
 ---
 
-**Q39: What is the difference between `final`, `finally`, and `finalize()`?**
+**Q39 🟢: What is the difference between `final`, `finally`, and `finalize()`?**
 
 **Answer**: `final` = keyword (prevent change/override/extend), `finally` = block (always executes after try/catch), `finalize()` = deprecated method (GC cleanup).
 
 ---
 
-**Q40: Can a `final` method be overloaded?**
+**Q40 🟡: Can a `final` method be overloaded?**
 
 **Answer**: **Yes**. `final` prevents overriding, not overloading.
 
 ---
 
-**Q41: Why is `String` class `final`?**
+**Q41 🟢: Why is `String` class `final`?**
 
 **Answer**: Security (class loading, credentials), thread safety, hashcode caching, String Pool integrity. Prevents subclasses from breaking immutability.
 
 ---
 
-**Q42: What happens if parent has no no-arg constructor and child doesn't call `super(args)`?**
+**Q42 🟡: What happens if parent has no no-arg constructor and child doesn't call `super(args)`?**
 
 **Answer**: **Compile error**. Compiler inserts `super()` automatically → parent has no no-arg constructor → fail.
 
 ---
 
-**Q43: What is constructor chaining?**
+**Q43 🟡: What is constructor chaining?**
 
 **Answer**: Calling one constructor from another using `this()` (same class) or `super()` (parent class). Avoids code duplication.
 
 ---
 
-**Q44: Can a constructor return a value?**
+**Q44 🟡: Can a constructor return a value?**
 
 **Answer**: No return type (not even void). However, a **method** with the same name as the class IS valid (but it's a method, not a constructor).
 
 ---
 
-**Q45: What is the order of constructor execution in inheritance?**
+**Q45 🟡: What is the order of constructor execution in inheritance?**
 
 **Answer**: Parent first, then child (top-down). Every constructor calls `super()` first (implicitly or explicitly).
 
@@ -2359,7 +2485,7 @@ System.out.println(p.x);  // 10 — Parent's x! (No polymorphism for fields)
 
 ---
 
-**Q46: What is the difference between Stack and Heap memory?**
+**Q46 🟡: What is the difference between Stack and Heap memory?**
 
 **Answer**:
 | Feature | Stack | Heap |
@@ -2372,13 +2498,13 @@ System.out.println(p.x);  // 10 — Parent's x! (No polymorphism for fields)
 
 ---
 
-**Q47: Where are String literals stored?**
+**Q47 🟡: Where are String literals stored?**
 
 **Answer**: In the **String Pool**, which is inside the **Heap** (since Java 7). Previously it was in PermGen space (Java 6 and earlier).
 
 ---
 
-**Q48: What is `StackOverflowError`? When does it occur?**
+**Q48 🟡: What is `StackOverflowError`? When does it occur?**
 
 **Answer**: Occurs when the call stack exceeds its size limit — typically from **infinite or very deep recursion**.
 
@@ -2390,7 +2516,7 @@ void recursive() {
 
 ---
 
-**Q49: What is the difference between `length`, `length()`, and `size()`?**
+**Q49 🟡: What is the difference between `length`, `length()`, and `size()`?**
 
 **Answer**:
 - `length` — **field** of **arrays**: `int[] arr; arr.length`
@@ -2399,7 +2525,7 @@ void recursive() {
 
 ---
 
-**Q50: What is the difference between `Arrays.asList()` and `List.of()`?**
+**Q50 🟡: What is the difference between `Arrays.asList()` and `List.of()`?**
 
 **Answer**:
 | Feature | `Arrays.asList()` | `List.of()` (Java 9) |
@@ -2414,7 +2540,7 @@ void recursive() {
 
 ---
 
-**Q51: Predict the output:**
+**Q51 🟢: Predict the output:**
 ```java
 System.out.println(10 + 20 + "Hello");
 System.out.println("Hello" + 10 + 20);
@@ -2426,7 +2552,7 @@ Left to right: `10 + 20` = int addition = 30, then `30 + "Hello"` = string conca
 
 ---
 
-**Q52: Predict the output:**
+**Q52 🔴: Predict the output:**
 ```java
 class Parent {
     int x = 10;
@@ -2448,7 +2574,7 @@ Parent constructor calls `display()` → overridden → Child's `display()` runs
 
 ---
 
-**Q53: Predict the output:**
+**Q53 🟡: Predict the output:**
 ```java
 int i = 1;
 i = i++ + ++i;
@@ -2459,7 +2585,7 @@ System.out.println(i);
 
 ---
 
-**Q54: Predict the output:**
+**Q54 🟡: Predict the output:**
 ```java
 static int x = 10;
 static { x = 20; }
@@ -2471,7 +2597,7 @@ static { x = 30; }
 
 ---
 
-**Q55: Predict the output:**
+**Q55 🟢: Predict the output:**
 ```java
 try {
     System.out.println("try");
@@ -2485,7 +2611,7 @@ try {
 
 ---
 
-**Q56: Predict the output:**
+**Q56 🟢: Predict the output:**
 ```java
 Animal a = new Dog();
 System.out.println(a.name);    // field
@@ -2498,7 +2624,7 @@ Where `name="Animal"/"Dog"`, `display()` prints class name, `showType()` is stat
 
 ---
 
-**Q57: Predict the output:**
+**Q57 🟡: Predict the output:**
 ```java
 String s1 = "Hello";
 String s2 = "Hel" + "lo";
@@ -2512,7 +2638,7 @@ System.out.println(s1 == s4);
 
 ---
 
-**Q58: What prints?**
+**Q58 🟡: What prints?**
 ```java
 System.out.println(1 == 1.0);
 System.out.println('A' == 65);
@@ -2523,7 +2649,7 @@ System.out.println('A' == 65.0);
 
 ---
 
-**Q59: Predict the output:**
+**Q59 🟡: Predict the output:**
 ```java
 int x = 10;
 x = x++;
@@ -2534,7 +2660,7 @@ System.out.println(x);
 
 ---
 
-**Q60: What is the output?**
+**Q60 🟡: What is the output?**
 ```java
 final int a = 10;
 int b = 20;
@@ -2545,13 +2671,13 @@ System.out.println(a + b == 30);   // compile-time?
 
 ---
 
-**Q61: Can you have an interface method that is both `default` and `static`?**
+**Q61 🟡: Can you have an interface method that is both `default` and `static`?**
 
 **Answer**: **No**. A method is either `default` (instance-level, overridable) or `static` (class-level, not overridable). They are mutually exclusive.
 
 ---
 
-**Q62: Predict the output:**
+**Q62 🟡: Predict the output:**
 ```java
 Integer a = new Integer(10);
 Integer b = new Integer(10);
@@ -2563,19 +2689,19 @@ System.out.println(a.equals(b));
 
 ---
 
-**Q63: What is the difference between `break` and `continue`?**
+**Q63 🟢: What is the difference between `break` and `continue`?**
 
 **Answer**: `break` exits the loop entirely. `continue` skips the current iteration and moves to the next. Both can be labeled to affect outer loops.
 
 ---
 
-**Q64: What is a `static` import?**
+**Q64 🟡: What is a `static` import?**
 
 **Answer**: Allows using static members without class prefix: `import static java.lang.Math.PI;` → use `PI` directly instead of `Math.PI`.
 
 ---
 
-**Q65: Can an interface extend another interface?**
+**Q65 🟡: Can an interface extend another interface?**
 
 **Answer**: **Yes**! An interface can `extend` one or more interfaces (multiple inheritance of type is allowed).
 

@@ -36,7 +36,8 @@
    - 4.4 Local Inner Class
    - 4.5 Anonymous Inner Class
    - 4.6 Anonymous Class vs Lambda
-5. [Interview Questions & Answers (55+)](#5-interview-questions--answers)
+5. [Common Mistakes & Anti-Patterns](#common-mistakes--anti-patterns)
+6. [Interview Questions & Answers (55+)](#6-interview-questions--answers)
 
 ---
 
@@ -1251,13 +1252,129 @@ Comparator<String> comp3 = Comparator.comparingInt(String::length);
 
 ---
 
+
+## Common Mistakes & Anti-Patterns
+
+These are mistakes Java developers commonly make with Strings, Wrappers, Enums, and Inner Classes.
+
+### Mistake 1: String Concatenation in Loops
+```java
+// ❌ TERRIBLE PERFORMANCE — creates N intermediate String objects
+String result = "";
+for (int i = 0; i < 10000; i++) {
+    result = result + i;           // New String every iteration!
+}
+
+// ✅ CORRECT — use StringBuilder
+StringBuilder sb = new StringBuilder();
+for (int i = 0; i < 10000; i++) {
+    sb.append(i);                  // Same object, in-place modification
+}
+String result = sb.toString();
+```
+
+### Mistake 2: Comparing Wrapper Objects with `==`
+```java
+Integer a = 200, b = 200;
+// ❌ WRONG — works for -128 to 127 (cached), fails outside that range!
+if (a == b) { }                    // false! (200 is outside cache)
+
+// ✅ CORRECT — always use equals()
+if (a.equals(b)) { }              // true — compares values
+
+// ⚠️ THE TRAP: This works by accident, giving false confidence
+Integer c = 100, d = 100;
+if (c == d) { }                    // true — but only because of Integer cache!
+```
+
+### Mistake 3: Unboxing Null Wrapper
+```java
+// ❌ COMMON PRODUCTION BUG
+Map<String, Integer> map = new HashMap<>();
+int count = map.get("missing_key");   // NPE! get() returns null, unboxing fails
+
+// ✅ SAFE approaches
+int count = map.getOrDefault("missing_key", 0);
+// OR
+Integer count = map.get("missing_key");
+if (count != null) { /* use count */ }
+```
+
+### Mistake 4: Using `replaceAll()` When You Mean `replace()`
+```java
+String path = "a.b.c";
+// ❌ WRONG — replaceAll uses REGEX! Dot means "any character"
+path.replaceAll(".", "/");         // Returns "///" — replaces every character!
+
+// ✅ CORRECT — replace() uses literal strings
+path.replace(".", "/");            // Returns "a/b/c"
+// OR escape the regex
+path.replaceAll("\\.", "/");       // Returns "a/b/c"
+```
+
+### Mistake 5: Using Enum's `ordinal()` for Persistence
+```java
+// ❌ DANGEROUS — ordinal changes if enum constants are reordered!
+enum Status { ACTIVE, INACTIVE, SUSPENDED }
+// Saving to DB: status.ordinal() → 0, 1, 2
+// Later someone adds: PENDING before ACTIVE → all values shift!
+
+// ✅ CORRECT — use name() or a dedicated code field
+enum Status {
+    ACTIVE("A"), INACTIVE("I"), SUSPENDED("S");
+    private final String code;
+    Status(String code) { this.code = code; }
+    public String getCode() { return code; }
+}
+// Save status.getCode() → "A" — stable regardless of order
+```
+
+### Mistake 6: Comparing Strings with `==` Instead of `.equals()`
+```java
+String input = getUserInput();      // Comes from external source
+// ❌ UNRELIABLE — may or may not be from the String Pool
+if (input == "admin") { }           // Might fail!
+
+// ✅ ALWAYS use .equals() — or put literal first for null-safety
+if ("admin".equals(input)) { }     // Safe even if input is null!
+```
+
+### Mistake 7: Not Understanding StringBuilder's `equals()`
+```java
+StringBuilder sb1 = new StringBuilder("Hello");
+StringBuilder sb2 = new StringBuilder("Hello");
+// ❌ WRONG ASSUMPTION
+sb1.equals(sb2);    // false! StringBuilder does NOT override equals()
+
+// ✅ CORRECT — compare the String content
+sb1.toString().equals(sb2.toString());   // true
+```
+
+### Mistake 8: Using Anonymous Inner Class When Lambda is Cleaner
+```java
+// ❌ VERBOSE (pre-Java 8 style)
+Collections.sort(list, new Comparator<String>() {
+    @Override
+    public int compare(String a, String b) {
+        return a.length() - b.length();
+    }
+});
+
+// ✅ MODERN — use Lambda (Java 8+)
+list.sort((a, b) -> a.length() - b.length());
+// Even better:
+list.sort(Comparator.comparingInt(String::length));
+```
+
+---
+
 ## 5. Interview Questions & Answers
 
 ### Category A: String Questions (20 Questions)
 
 ---
 
-**Q1: Why is `String` immutable in Java?**
+**Q1 🟢: Why is `String` immutable in Java?**
 
 **Answer**: String is immutable for 5 reasons:
 1. **String Pool**: Multiple references share the same string. Mutation would corrupt other references.
@@ -1270,7 +1387,7 @@ Internally, `String` is `final class` (can't be subclassed) with `private final 
 
 ---
 
-**Q2: How many objects are created by: `String s = new String("Hello");`?**
+**Q2 🟢: How many objects are created by: `String s = new String("Hello");`?**
 
 **Answer**: **Up to 2 objects**:
 1. `"Hello"` as a **string literal** → placed in the String Pool (if not already there)
@@ -1280,7 +1397,7 @@ If `"Hello"` already exists in the pool from a previous statement, then only **1
 
 ---
 
-**Q3: What is the String Pool? Where is it stored?**
+**Q3 🟡: What is the String Pool? Where is it stored?**
 
 **Answer**: The String Pool (also called String Intern Pool) is a special storage area where Java stores string literals. When you create a string literal, Java checks the pool first — if it exists, the existing reference is returned; if not, a new string is created in the pool.
 
@@ -1290,7 +1407,7 @@ If `"Hello"` already exists in the pool from a previous statement, then only **1
 
 ---
 
-**Q4: Explain the difference between `String`, `StringBuilder`, and `StringBuffer`.**
+**Q4 🟢: Explain the difference between `String`, `StringBuilder`, and `StringBuffer`.**
 
 **Answer**:
 - **`String`**: Immutable. Any "change" creates a new object. Thread-safe inherently. Use when value won't change.
@@ -1304,7 +1421,7 @@ Performance example: Concatenating 10,000 strings in a loop:
 
 ---
 
-**Q5: What is the `intern()` method?**
+**Q5 🟡: What is the `intern()` method?**
 
 **Answer**: `intern()` checks if the string exists in the String Pool. If yes, it returns the pool reference. If no, it adds the string to the pool and returns the pool reference.
 
@@ -1321,7 +1438,7 @@ Use case: When you have many duplicate strings (e.g., reading from a file), `int
 
 ---
 
-**Q6: Predict the output:**
+**Q6 🔴: Predict the output:**
 ```java
 String s1 = "Hello";
 String s2 = "Hel" + "lo";
@@ -1350,7 +1467,7 @@ System.out.println(s1 == s4);   // true! — s3 is a compile-time constant
 
 ---
 
-**Q7: Predict the output:**
+**Q7 🟡: Predict the output:**
 ```java
 String s1 = "abc";
 String s2 = "abc";
@@ -1373,7 +1490,7 @@ true     — same content
 
 ---
 
-**Q8: Is `String` a keyword in Java?**
+**Q8 🟡: Is `String` a keyword in Java?**
 
 **Answer**: **No**. `String` is a **class** (`java.lang.String`), not a keyword. It just looks special because:
 - It's imported by default (`java.lang` package)
@@ -1384,7 +1501,7 @@ Keywords are lowercase (`class`, `int`, `if`, etc.). `String` starts with upperc
 
 ---
 
-**Q9: Why is `String` declared as `final` class?**
+**Q9 🟡: Why is `String` declared as `final` class?**
 
 **Answer**: If `String` were not final, a malicious subclass could:
 - Override methods to modify behavior
@@ -1397,7 +1514,7 @@ Making it `final` ensures no subclass can undermine String's guarantees.
 
 ---
 
-**Q10: What is the difference between `trim()` and `strip()`?**
+**Q10 🟡: What is the difference between `trim()` and `strip()`?**
 
 **Answer**:
 - `trim()` (since Java 1.0): Removes characters with ASCII value ≤ 32 (space, tab, newline). Does NOT handle Unicode whitespace.
@@ -1413,7 +1530,7 @@ Also: `stripLeading()` and `stripTrailing()` exist for one-sided stripping.
 
 ---
 
-**Q11: How does `String` achieve thread-safety?**
+**Q11 🟡: How does `String` achieve thread-safety?**
 
 **Answer**: Through **immutability**. Since String content cannot change after creation:
 - No thread can modify it while another reads it
@@ -1424,7 +1541,7 @@ This is the most elegant form of thread safety — no locks, no synchronization,
 
 ---
 
-**Q12: What happens when you use `+` for String concatenation in a loop?**
+**Q12 🟡: What happens when you use `+` for String concatenation in a loop?**
 
 **Answer**: Each `+` creates a new `StringBuilder` internally, performs the concatenation, calls `toString()`, and discards the `StringBuilder`. In a loop with N iterations, this creates N intermediate `String` objects and N `StringBuilder` objects — very wasteful.
 
@@ -1442,7 +1559,7 @@ String result = sb.toString();  // ONE StringBuilder, ONE final String
 
 ---
 
-**Q13: Can we use `String` in switch statements?**
+**Q13 🟡: Can we use `String` in switch statements?**
 
 **Answer**: **Yes**, since **Java 7**. Before that, only `byte`, `short`, `char`, `int`, and enums were allowed.
 
@@ -1460,7 +1577,7 @@ Internally, Java uses the string's `hashCode()` for the switch, then verifies wi
 
 ---
 
-**Q14: How to convert a `String` to a `char` array and vice versa?**
+**Q14 🟢: How to convert a `String` to a `char` array and vice versa?**
 
 **Answer**:
 ```java
@@ -1479,7 +1596,7 @@ String s4 = new String(chars, 1, 3);    // "ell" (offset=1, count=3)
 
 ---
 
-**Q15: What is the difference between `replace()` and `replaceAll()`?**
+**Q15 🟡: What is the difference between `replace()` and `replaceAll()`?**
 
 **Answer**:
 - `replace(char, char)` / `replace(CharSequence, CharSequence)` — Literal replacement. Replaces ALL occurrences, but the search term is treated as a **plain string**.
@@ -1497,7 +1614,7 @@ s.replaceAll("\\.", "-");  // "a-b-c"    — escaped dot in regex
 
 ---
 
-**Q16: How to check if a `String` is a palindrome?**
+**Q16 🟡: How to check if a `String` is a palindrome?**
 
 **Answer**:
 ```java
@@ -1520,7 +1637,7 @@ public boolean isPalindrome(String s) {
 
 ---
 
-**Q17: Predict the output:**
+**Q17 🟡: Predict the output:**
 ```java
 String s1 = "Hello";
 String s2 = "Hello";
@@ -1545,7 +1662,7 @@ This perfectly demonstrates String immutability and why it's safe for the String
 
 ---
 
-**Q18: What is the time complexity of `String.substring()` in Java 7+?**
+**Q18 🔴: What is the time complexity of `String.substring()` in Java 7+?**
 
 **Answer**: **O(n)** where n is the length of the substring.
 
@@ -1555,7 +1672,7 @@ From Java 7+, `substring()` creates a **new char array** — O(n) time, but no m
 
 ---
 
-**Q19: What is the `compareTo()` method in String?**
+**Q19 🟡: What is the `compareTo()` method in String?**
 
 **Answer**: `compareTo()` performs **lexicographic comparison** (dictionary order) based on Unicode values.
 
@@ -1575,7 +1692,7 @@ Used by `TreeSet`, `TreeMap`, and `Collections.sort()` for natural ordering of s
 
 ---
 
-**Q20: Can you create a `String` without using `new` keyword and without using a literal?**
+**Q20 🟡: Can you create a `String` without using `new` keyword and without using a literal?**
 
 **Answer**: Yes, several ways:
 ```java
@@ -1604,7 +1721,7 @@ String s6 = String.join("-", "A", "B", "C");
 
 ---
 
-**Q21: What is autoboxing and unboxing?**
+**Q21 🟢: What is autoboxing and unboxing?**
 
 **Answer**: 
 - **Autoboxing**: Automatic conversion of primitive → wrapper (`int` → `Integer`)
@@ -1620,7 +1737,7 @@ int val = list.get(0);     // Unboxing: Integer → list.get(0).intValue()
 
 ---
 
-**Q22: What is the Integer Cache? Why does it exist?**
+**Q22 🟡: What is the Integer Cache? Why does it exist?**
 
 **Answer**: Java caches `Integer` objects for values **-128 to 127**. When you create an Integer in this range via autoboxing or `valueOf()`, the cached instance is returned instead of creating a new object.
 
@@ -1638,7 +1755,7 @@ The upper limit can be increased via JVM flag: `-XX:AutoBoxCacheMax=<size>`.
 
 ---
 
-**Q23: Predict the output:**
+**Q23 🟢: Predict the output:**
 ```java
 Integer a = 1000, b = 1000;
 Integer c = 100, d = 100;
@@ -1654,7 +1771,7 @@ true     — 100 is within cache range, same cached object
 
 ---
 
-**Q24: What happens when you unbox a `null` wrapper?**
+**Q24 🟡: What happens when you unbox a `null` wrapper?**
 
 **Answer**: **`NullPointerException`**.
 
@@ -1677,7 +1794,7 @@ int count = Optional.ofNullable(map.get("key")).orElse(0); // Optional
 
 ---
 
-**Q25: Why can't we use primitives with generics? (e.g., `List<int>` is illegal)**
+**Q25 🟡: Why can't we use primitives with generics? (e.g., `List<int>` is illegal)**
 
 **Answer**: Generics in Java work through **type erasure** — at runtime, `List<Integer>` becomes just `List<Object>`. Since primitives are NOT objects and don't extend `Object`, they can't be used as type parameters.
 
@@ -1693,7 +1810,7 @@ int val = list.get(0);    // Unboxing: Integer → int
 
 ---
 
-**Q26: What is the difference between `Integer.parseInt()` and `Integer.valueOf()`?**
+**Q26 🟡: What is the difference between `Integer.parseInt()` and `Integer.valueOf()`?**
 
 **Answer**:
 - `parseInt(String)` → Returns **`int`** (primitive)
@@ -1709,7 +1826,7 @@ Integer c = Integer.valueOf(42);     // Integer from int (may be cached)
 
 ---
 
-**Q27: `Double d1 = 0.1 + 0.2;` — What is the value? Is it 0.3?**
+**Q27 🔴: `Double d1 = 0.1 + 0.2;` — What is the value? Is it 0.3?**
 
 **Answer**: **No!** It's `0.30000000000000004`.
 
@@ -1733,7 +1850,7 @@ System.out.println(c);                    // 0.3 — exact!
 
 ---
 
-**Q28: Can wrapper classes be used as keys in `HashMap`?**
+**Q28 🟡: Can wrapper classes be used as keys in `HashMap`?**
 
 **Answer**: **Yes**, and they work perfectly because:
 1. All wrapper classes properly override `equals()` and `hashCode()` (following the contract)
@@ -1753,7 +1870,7 @@ map.get(1);           // "One" — works perfectly
 
 ---
 
-**Q29: What is an Enum in Java? How is it different from a class?**
+**Q29 🟢: What is an Enum in Java? How is it different from a class?**
 
 **Answer**: An Enum is a **special type of class** that represents a fixed set of constants. It is more than a simple collection of named constants — it's a full class with fields, constructors, and methods.
 
@@ -1767,7 +1884,7 @@ Key differences from regular classes:
 
 ---
 
-**Q30: Can an Enum extend a class?**
+**Q30 🟡: Can an Enum extend a class?**
 
 **Answer**: **No**. Every enum implicitly extends `java.lang.Enum`. Since Java doesn't support multiple inheritance, an enum cannot extend any other class. However, an enum **can implement interfaces**.
 
@@ -1783,7 +1900,7 @@ enum Color implements Serializable, Comparable<Color> {
 
 ---
 
-**Q31: Can we create an instance of Enum using `new`?**
+**Q31 🟡: Can we create an instance of Enum using `new`?**
 
 **Answer**: **No**. Enum constructors are implicitly `private`. You cannot instantiate an enum using `new`, even from within the enum class itself (outside the constant declarations). The JVM creates enum instances when the class is loaded.
 
@@ -1794,7 +1911,7 @@ Color c = Color.RED;        // ✅ Use the predefined constants
 
 ---
 
-**Q32: Can Enum have a constructor? If yes, what are the rules?**
+**Q32 🟡: Can Enum have a constructor? If yes, what are the rules?**
 
 **Answer**: **Yes**. Rules:
 1. Constructor must be **`private`** (or package-private, but `private` is recommended)
@@ -1818,7 +1935,7 @@ enum Size {
 
 ---
 
-**Q33: How to iterate over all enum constants?**
+**Q33 🟡: How to iterate over all enum constants?**
 
 **Answer**: Use the `values()` method (compiler-generated):
 ```java
@@ -1835,7 +1952,7 @@ Arrays.stream(Day.values()).filter(d -> d.ordinal() > 4).forEach(System.out::pri
 
 ---
 
-**Q34: What is the difference between `name()` and `toString()` in Enum?**
+**Q34 🔴: What is the difference between `name()` and `toString()` in Enum?**
 
 **Answer**:
 - `name()`: Returns the **exact name** as declared. Cannot be overridden. Always returns the constant name.
@@ -1862,7 +1979,7 @@ Status s2 = Status.valueOf("ACTIVE");     // ✅ Works
 
 ---
 
-**Q35: Can Enum implement the Singleton pattern? Why is it considered the best approach?**
+**Q35 🔴: Can Enum implement the Singleton pattern? Why is it considered the best approach?**
 
 **Answer**: **Yes**, and it's the best Singleton implementation (recommended by Joshua Bloch, author of *Effective Java*).
 
@@ -1888,7 +2005,7 @@ Singleton.INSTANCE.increment();
 
 ---
 
-**Q36: What is `EnumSet`? Why prefer it over `HashSet` for enums?**
+**Q36 🟡: What is `EnumSet`? Why prefer it over `HashSet` for enums?**
 
 **Answer**: `EnumSet` is a specialized `Set` for enum types. It uses a **bit-vector** internally — each bit represents an enum constant (present or absent).
 
@@ -1903,7 +2020,7 @@ Why prefer over `HashSet`:
 
 ---
 
-**Q37: Predict the output:**
+**Q37 🟡: Predict the output:**
 ```java
 enum Fruit {
     APPLE, BANANA, CHERRY;
@@ -1931,7 +2048,7 @@ true     — equals also returns true (uses == internally)
 
 ---
 
-**Q38: Can we use `==` to compare Enums? Is it safe?**
+**Q38 🟡: Can we use `==` to compare Enums? Is it safe?**
 
 **Answer**: **Yes, and it's recommended!** Unlike wrapper classes and Strings where `==` compares references and can give wrong results, enum constants are **singletons** guaranteed by the JVM. Each constant exists exactly once, so `==` always works correctly for enums.
 
@@ -1954,7 +2071,7 @@ s.equals(Status.ACTIVE)   // ❌ NPE! Calling method on null
 
 ---
 
-**Q39: What are the 4 types of inner classes in Java?**
+**Q39 🟡: What are the 4 types of inner classes in Java?**
 
 **Answer**:
 
@@ -1967,7 +2084,7 @@ s.equals(Status.ACTIVE)   // ❌ NPE! Calling method on null
 
 ---
 
-**Q40: What is the difference between a member inner class and a static nested class?**
+**Q40 🟢: What is the difference between a member inner class and a static nested class?**
 
 **Answer**: The key difference is the **relationship with the outer class**:
 
@@ -1988,7 +2105,7 @@ Outer.StaticNested nested = new Outer.StaticNested();
 
 ---
 
-**Q41: Can an inner class access the private members of its outer class?**
+**Q41 🟡: Can an inner class access the private members of its outer class?**
 
 **Answer**: **Yes!** This is one of the main reasons inner classes exist. All 4 types of inner classes can access private members of their enclosing class.
 
@@ -2008,7 +2125,7 @@ The compiler achieves this by generating synthetic accessor methods (package-pri
 
 ---
 
-**Q42: Can a local inner class access local variables of its enclosing method?**
+**Q42 🟡: Can a local inner class access local variables of its enclosing method?**
 
 **Answer**: Yes, but only if the variables are **`final` or effectively final** (never reassigned after initialization).
 
@@ -2031,7 +2148,7 @@ void process() {
 
 ---
 
-**Q43: What is an anonymous inner class? When would you use it?**
+**Q43 🟢: What is an anonymous inner class? When would you use it?**
 
 **Answer**: An anonymous inner class is a class without a name that is declared and instantiated in a single expression. It's used for one-time implementations.
 
@@ -2058,7 +2175,7 @@ Collections.sort(list, (a, b) -> a.compareTo(b));
 
 ---
 
-**Q44: Can a lambda replace every anonymous inner class?**
+**Q44 🟡: Can a lambda replace every anonymous inner class?**
 
 **Answer**: **No**. Lambdas can only implement **functional interfaces** (interfaces with exactly one abstract method). Anonymous classes are still needed when:
 
@@ -2069,7 +2186,7 @@ Collections.sort(list, (a, b) -> a.compareTo(b));
 
 ---
 
-**Q45: Predict the output:**
+**Q45 🔴: Predict the output:**
 ```java
 public class Test {
     int x = 10;
@@ -2107,7 +2224,7 @@ The local variable `x = 20` is **shadowed** by the anonymous class's field `x = 
 
 ---
 
-**Q46: How many `.class` files are generated for inner classes?**
+**Q46 🟡: How many `.class` files are generated for inner classes?**
 
 **Answer**: Each inner class generates its own `.class` file:
 
@@ -2123,7 +2240,7 @@ You can verify this by running `javac` and checking the output directory.
 
 ---
 
-**Q47: Can an inner class be `private`?**
+**Q47 🟡: Can an inner class be `private`?**
 
 **Answer**: **Yes!** Unlike top-level classes (which can only be `public` or package-private), inner classes can have **any access modifier**: `public`, `protected`, `default`, or `private`.
 
@@ -2147,7 +2264,7 @@ public class LinkedList<E> {
 
 ---
 
-**Q48: Predict the output:**
+**Q48 🔴: Predict the output:**
 ```java
 String s1 = "Java";
 String s2 = "Java";
@@ -2172,7 +2289,7 @@ false    — StringBuilder does NOT override equals()! Uses Object.equals() whic
 
 ---
 
-**Q49: Why are Strings preferred as `HashMap` keys?**
+**Q49 🟡: Why are Strings preferred as `HashMap` keys?**
 
 **Answer**: Strings are ideal HashMap keys because:
 1. **Immutable** — hashcode can't change after insertion (changing hashcode would "lose" the entry)
@@ -2184,7 +2301,7 @@ If you use a mutable object as a key and modify it after insertion, its hashcode
 
 ---
 
-**Q50: What is the output of `"abc".toUpperCase() == "ABC"`?**
+**Q50 🟡: What is the output of `"abc".toUpperCase() == "ABC"`?**
 
 **Answer**: **`false`**
 
@@ -2197,13 +2314,13 @@ If you use a mutable object as a key and modify it after insertion, its hashcode
 
 ---
 
-**Q51: Can we extend the `String` class and override its methods?**
+**Q51 🟡: Can we extend the `String` class and override its methods?**
 
 **Answer**: **No**. `String` is declared as `final class`, so it cannot be extended. This is by design to ensure immutability and security guarantees can never be broken by a subclass.
 
 ---
 
-**Q52: What is the difference between `String.valueOf(null)` and `null.toString()`?**
+**Q52 🟡: What is the difference between `String.valueOf(null)` and `null.toString()`?**
 
 **Answer**:
 ```java
@@ -2216,7 +2333,7 @@ s.toString();           // ❌ NullPointerException!
 
 ---
 
-**Q53: How to count the frequency of each character in a String?**
+**Q53 🟡: How to count the frequency of each character in a String?**
 
 **Answer**: Multiple approaches:
 ```java
@@ -2242,7 +2359,7 @@ for (char c : s.toCharArray()) {
 
 ---
 
-**Q54: What is the output? Why?**
+**Q54 🟡: What is the output? Why?**
 ```java
 Boolean b1 = Boolean.valueOf("true");
 Boolean b2 = Boolean.valueOf("TRUE");
@@ -2259,7 +2376,7 @@ System.out.println(b1 + " " + b2 + " " + b3 + " " + b4 + " " + b5);
 
 ---
 
-**Q55: What is `String.format()` and `System.out.printf()`?**
+**Q55 🟡: What is `String.format()` and `System.out.printf()`?**
 
 **Answer**: Both use format specifiers to create formatted strings:
 
